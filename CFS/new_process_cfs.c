@@ -25,5 +25,5 @@ void rb_insert(rb_node **root, process *p)
     else
         y->right = z;
 
-    rb_insert_fixup(root, z);
+    insert(root, z);
 }
