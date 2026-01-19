@@ -18,44 +18,35 @@ void update_vruntime(process *p, double runtime)
 {
     p->vruntime += runtime * (BASE_WEIGHT / p->weight);
 }
-void cfs_schedule(process proc[], int n)
-{
-    double time = 0.0;
-    int alive = n;
-    for (int i = 0; i < n; i++) {
-        if (proc[i].state == READY)
-            rb_insert(&root, &proc[i]);
-    }
+rb_node *runqueue = NULL;
+int active_tasks = 0;
 
-    while (alive > 0 && root) {
+void cfs_schedule_dynamic() {
+    double current_time = 0.0;
 
-        rb_node *node = pick_next_process(root);
+    while (runqueue != NULL) {
+        rb_node *node = pick_next_process(runqueue);
         process *p = node->task;
-
-        rb_delete(&root, node);
-
+        rb_delete(&runqueue, node); 
         p->state = RUNNING;
 
-        int nr_running = alive;
-        double slice = calc_slice(p->weight, nr_running);
+        double slice = calc_slice(p->weight, active_tasks);
+        double run = (p->remaining_time < slice) ? p->remaining_time : slice;
 
-        double run = (p->exec_time < slice) ? p->exec_time : slice;
+        printf("[t=%.2f] PID %d runs for %.2f (vruntime=%.2f)\n", 
+               current_time, p->pid, run, p->vruntime);
 
-        printf("[t=%.2f] PID %d runs for %.2f (vruntime=%.2f)\n",
-               time, p->pid, run, p->vruntime);
-
-        time += run;
-
-        p->exec_time -= run;
+        current_time += run;
+        p->remaining_time -= run;
         update_vruntime(p, run);
 
-        if (p->exec_time <= 0) {
-            p->state = DONE;
-            alive--;
-            printf("PID %d finished at t=%.2f\n", p->pid, time);
+        if (p->remaining_time <= 0) {
+            p->state = FINISHED;
+            active_tasks--;
+            printf("PID %d finished at t=%.2f\n", p->pid, current_time);
         } else {
             p->state = READY;
-            rb_insert(&root, p);
+            rb_insert(&runqueue, p);
         }
     }
 }
