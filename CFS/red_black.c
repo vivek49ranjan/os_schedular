@@ -22,7 +22,7 @@ void right_rotate(rb_node **root, rb_node *y) {
     y->parent = x;
 }
 
-void fix_insert(rb_node **root, rb_node *z) {
+void insert(rb_node **root, rb_node *z) {
     while (z != *root && z->parent->color == RED) {
         if (z->parent == z->parent->parent->left) {
             rb_node *uncle = z->parent->parent->right;
