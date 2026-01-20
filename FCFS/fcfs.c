@@ -80,11 +80,7 @@ void insert_by_arrival(Queue *arrival_q, Process *p) {
         arrival_q->rear = p;
 }
 
-/* ======================================================
-   FCFS I/O-AWARE STREAMING SCHEDULER
-   INPUT  : arrival queue (sorted)
-   OUTPUT : Gantt chart + table
-   ====================================================== */
+/* =================FCFS I/O-AWARE STREAMING SCHEDULER=====================================*/
 void fcfs_io_aware(Queue *arrival_q) {
 
     static int time = 0;          /* persistent clock */
@@ -186,3 +182,4 @@ void fcfs_io_aware(Queue *arrival_q) {
 
     time++;
 }
+
