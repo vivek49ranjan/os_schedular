@@ -42,7 +42,7 @@ typedef struct {
     double duration;
 } gantt_step;
 
-typedef struct process_fcfs {
+typedef struct process {
     int pid;
     int arrival_time;
     int burst_time;
@@ -57,7 +57,7 @@ typedef struct process_fcfs {
     int io_remaining;
     int in_io;
 
-    struct process_fcfs *next;
+    struct process *next;
 } Process;
 
 typedef struct {
@@ -74,12 +74,12 @@ int history_count = 0;
 process *finished[MAX_PROC];
 int finished_count = 0;
 
-Queue fcfs_arrival_q;
-
 void init_queue(Queue *q) {
     q->front = q->rear = NULL;
 }
-
+int is_empty(Queue *q) {
+    return q->front == NULL;
+}
 void enqueue(Queue *q, Process *p) {
     p->next = NULL;
     if (!q->rear) {
@@ -117,69 +117,78 @@ void insert_by_arrival(Queue *q, Process *p) {
 }
 
 void fcfs_io_aware(Queue *arrival_q) {
-    Queue ready_q = {0};
-    Queue io_q = {0};
+    Queue ready_q, io_q;
+    init_queue(&ready_q);
+    init_queue(&io_q);
 
-    int clock = 0;
+    int time = 0;
+    Process *running = NULL;
 
     printf("\nPID | AT | BT | ST | CT | TAT | WT\n");
     printf("---------------------------------\n");
 
-    while (arrival_q->front || ready_q.front || io_q.front) {
-        while (arrival_q->front && arrival_q->front->arrival_time <= clock)
-            enqueue(&ready_q, dequeue(arrival_q));
+    while (!is_empty(arrival_q) || !is_empty(&ready_q) ||
+           !is_empty(&io_q) || running) {
 
-        Process *prev = NULL, *cur = io_q.front;
-        while (cur) {
-            cur->io_remaining--;
-            if (cur->io_remaining <= 0) {
-                Process *done = cur;
-                if (prev) prev->next = cur->next;
-                else io_q.front = cur->next;
-                cur = cur->next;
-                done->in_io = 0;
-                enqueue(&ready_q, done);
+        while (!is_empty(arrival_q) &&
+               arrival_q->front->arrival_time <= time) {
+            enqueue(&ready_q, dequeue(arrival_q));
+        }
+
+        int io_count = 0;
+        for (Process *p = io_q.front; p; p = p->next) io_count++;
+
+        while (io_count--) {
+            Process *p = dequeue(&io_q);
+            p->io_remaining--;
+
+            if (p->io_remaining == 0) {
+                p->in_io = 0;
+                enqueue(&ready_q, p);
             } else {
-                prev = cur;
-                cur = cur->next;
+                enqueue(&io_q, p);
             }
         }
 
-        if (!ready_q.front) {
-            clock++;
-            continue;
+        if (!running && !is_empty(&ready_q)) {
+            running = dequeue(&ready_q);
+            if (running->start_time == -1)
+                running->start_time = time;
         }
 
-        Process *p = dequeue(&ready_q);
+        if (running) {
+            running->remaining_time--;
+            running->executed_time++;
 
-        if (p->start_time == -1)
-            p->start_time = clock;
+            if (running->executed_time == running->io_start &&
+                running->io_duration > 0) {
+                running->io_remaining = running->io_duration;
+                running->in_io = 1;
+                enqueue(&io_q, running);
+                running = NULL;
+            } else if (running->remaining_time == 0) {
+                running->completion_time = time + 1;
 
-        p->remaining_time--;
-        clock++;
+                int tat = running->completion_time - running->arrival_time;
+                int wt  = tat - running->burst_time;
 
-        if (!p->in_io && p->remaining_time == p->burst_time - p->io_start) {
-            p->in_io = 1;
-            p->io_remaining = p->io_duration;
-            enqueue(&io_q, p);
-            continue;
+                printf("%3d | %2d | %2d | %2d | %2d | %3d | %3d\n",
+                       running->pid,
+                       running->arrival_time,
+                       running->burst_time,
+                       running->start_time,
+                       running->completion_time,
+                       tat,
+                       wt);
+
+                free(running);
+                running = NULL;
+            }
         }
 
-        if (p->remaining_time == 0) {
-            p->completion_time = clock;
-            int tat = p->completion_time - p->arrival_time;
-            int wt = tat - p->burst_time;
-
-            printf("%3d | %2d | %2d | %2d | %2d | %3d | %2d\n",
-                   p->pid, p->arrival_time, p->burst_time,
-                   p->start_time, p->completion_time, tat, wt);
-            free(p);
-        } else {
-            enqueue(&ready_q, p);
-        }
+        time++;
     }
 }
-
 
 void left_rotate(rb_node **root, rb_node *x) {
     rb_node *y = x->right;
@@ -403,6 +412,7 @@ int main() {
 
     int pid, at, bt;
 
+    Queue fcfs_arrival_q;
     init_queue(&fcfs_arrival_q);
 
     printf("--- Admitting Processes ---\n");
