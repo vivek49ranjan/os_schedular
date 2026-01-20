@@ -6,13 +6,16 @@ typedef struct process {
     int pid;
     int arrival_time;
     int burst_time;
+
+    /* Runtime fields */
     int remaining_time;
     int executed_time;
     int start_time;
     int completion_time;
 
-    int io_start;        /* when I/O starts */
-    int io_duration;     /* fixed I/O time */
+    /* I/O (heuristic) */
+    int io_start;
+    int io_duration;
     int io_remaining;
     int in_io;
 
@@ -52,151 +55,134 @@ Process *dequeue(Queue *q) {
     return p;
 }
 
-/* ================= SORT BY ARRIVAL ================= */
-void sort_by_arrival(Process *p, int n) {
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = i + 1; j < n; j++) {
-            if (p[i].arrival_time > p[j].arrival_time) {
-                Process temp = p[i];
-                p[i] = p[j];
-                p[j] = temp;
-            }
-        }
+/* ========== ARRIVAL-TIME SORTED INSERTION ========== */
+void insert_by_arrival(Queue *arrival_q, Process *p) {
+
+    if (is_empty(arrival_q) ||
+        p->arrival_time < arrival_q->front->arrival_time) {
+
+        p->next = arrival_q->front;
+        arrival_q->front = p;
+        if (!arrival_q->rear)
+            arrival_q->rear = p;
+        return;
     }
+
+    Process *cur = arrival_q->front;
+    while (cur->next &&
+           cur->next->arrival_time <= p->arrival_time) {
+        cur = cur->next;
+    }
+
+    p->next = cur->next;
+    cur->next = p;
+    if (!p->next)
+        arrival_q->rear = p;
 }
 
+/* ======================================================
+   FCFS I/O-AWARE STREAMING SCHEDULER
+   INPUT  : arrival queue (sorted)
+   OUTPUT : Gantt chart + table
+   ====================================================== */
+void fcfs_io_aware(Queue *arrival_q) {
 
-/*=============== FCFS I/O-AWARE SCHEDULER ================*/
+    static int time = 0;          /* persistent clock */
+    static int header_printed = 0;
 
-void fcfs_io_aware(
-    int pid[],
-    int arrival_time[],
-    int burst_time[],
-    int n
-) {
-    Process *ptable = (Process *)malloc(sizeof(Process) * n);
+    static Queue ready_q, io_q;
+    static Process *current = NULL;
 
-    for (int i = 0; i < n; i++) {
-        ptable[i].pid = pid[i];
-        ptable[i].arrival_time = arrival_time[i];
-        ptable[i].burst_time = burst_time[i];
-
-        ptable[i].remaining_time = burst_time[i];
-        ptable[i].executed_time = 0;
-        ptable[i].start_time = -1;
-        ptable[i].completion_time = 0;
-
-        ptable[i].io_start = burst_time[i] / 2;
-        ptable[i].io_duration = 2;
-        ptable[i].io_remaining = 0;
-        ptable[i].in_io = 0;
-
-        ptable[i].next = NULL;
+    static int initialized = 0;
+    if (!initialized) {
+        init_queue(&ready_q);
+        init_queue(&io_q);
+        initialized = 1;
     }
 
-    sort_by_arrival(ptable, n);
+    if (!header_printed) {
+        printf("\nGANTT CHART:\n");
+        header_printed = 1;
+    }
 
-    Queue ready_q, io_q;
-    init_queue(&ready_q);
-    init_queue(&io_q);
+    /* ---- Admit arrivals ---- */
+    while (!is_empty(arrival_q) &&
+           arrival_q->front->arrival_time <= time) {
 
-    int time = 0;
-    int completed = 0;
-    int next_arrival = 0;
-    Process *current = NULL;
+        enqueue(&ready_q, dequeue(arrival_q));
+    }
 
-    printf("\nGANTT CHART:\n");
+    /* ---- Handle I/O completion ---- */
+    Process *prev = NULL;
+    Process *io_p = io_q.front;
 
-    while (completed < n) {
+    while (io_p) {
+        io_p->io_remaining--;
 
-        /* ---- Handle arrivals ---- */
-        while (next_arrival < n &&
-               ptable[next_arrival].arrival_time == time) {
-            enqueue(&ready_q, &ptable[next_arrival]);
-            next_arrival++;
-        }
+        if (io_p->io_remaining == 0) {
+            io_p->in_io = 0;
 
-        /* ---- Handle I/O completion ---- */
-        Process *prev = NULL;
-        Process *io_p = io_q.front;
+            if (!prev)
+                io_q.front = io_p->next;
+            else
+                prev->next = io_p->next;
 
-        while (io_p) {
-            io_p->io_remaining--;
-            if (io_p->io_remaining == 0) {
-                io_p->in_io = 0;
+            if (io_p == io_q.rear)
+                io_q.rear = prev;
 
-                if (!prev)
-                    io_q.front = io_p->next;
-                else
-                    prev->next = io_p->next;
-
-                if (io_p == io_q.rear)
-                    io_q.rear = prev;
-
-                Process *done = io_p;
-                io_p = io_p->next;
-                enqueue(&ready_q, done);
-            } else {
-                prev = io_p;
-                io_p = io_p->next;
-            }
-        }
-
-        /* ---- CPU selection ---- */
-        if (!current && !is_empty(&ready_q)) {
-            current = dequeue(&ready_q);
-            if (current->start_time == -1)
-                current->start_time = time;
-        }
-
-        /* ---- Execute CPU ---- */
-        if (current) {
-            printf("| P%d ", current->pid);
-
-            current->remaining_time--;
-            current->executed_time++;
-
-            /* I/O block */
-            if (current->executed_time == current->io_start &&
-                current->remaining_time > 0) {
-
-                current->in_io = 1;
-                current->io_remaining = current->io_duration;
-                enqueue(&io_q, current);
-                current = NULL;
-            }
-            /* Completion */
-            else if (current->remaining_time == 0) {
-                current->completion_time = time + 1;
-                completed++;
-                current = NULL;
-            }
+            Process *done = io_p;
+            io_p = io_p->next;
+            enqueue(&ready_q, done);
         } else {
-            printf("| IDLE ");
+            prev = io_p;
+            io_p = io_p->next;
         }
-
-        time++;
     }
 
-    printf("|\n");
-
-    /* ================= OUTPUT TABLE ================= */
-    printf("\nPID\tAT\tBT\tCT\tTAT\tWT\tRT\n");
-
-    for (int i = 0; i < n; i++) {
-        int tat = ptable[i].completion_time - ptable[i].arrival_time;
-        int wt  = tat - ptable[i].burst_time;
-        int rt  = ptable[i].start_time - ptable[i].arrival_time;
-
-        printf("P%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
-               ptable[i].pid,
-               ptable[i].arrival_time,
-               ptable[i].burst_time,
-               ptable[i].completion_time,
-               tat,
-               wt,
-               rt);
+    /* ---- Select process ---- */
+    if (!current && !is_empty(&ready_q)) {
+        current = dequeue(&ready_q);
+        if (current->executed_time == 0)
+            current->start_time = time;
     }
 
-    free(ptable);
+    /* ---- Execute CPU ---- */
+    if (current) {
+        printf("| P%d ", current->pid);
+
+        current->remaining_time--;
+        current->executed_time++;
+
+        /* I/O block */
+        if (current->executed_time == current->io_start &&
+            current->remaining_time > 0) {
+
+            current->in_io = 1;
+            current->io_remaining = current->io_duration;
+            enqueue(&io_q, current);
+            current = NULL;
+        }
+        /* Completion */
+        else if (current->remaining_time == 0) {
+            current->completion_time = time + 1;
+
+            int tat = current->completion_time - current->arrival_time;
+            int wt  = tat - current->burst_time;
+            int rt  = current->start_time - current->arrival_time;
+
+            printf("\nP%d  AT=%d  BT=%d  CT=%d  TAT=%d  WT=%d  RT=%d\n",
+                   current->pid,
+                   current->arrival_time,
+                   current->burst_time,
+                   current->completion_time,
+                   tat, wt, rt);
+
+            free(current);
+            current = NULL;
+        }
+    } else {
+        printf("| IDLE ");
+    }
+
+    time++;
 }
