@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 
 #define RED 0
 #define BLACK 1
@@ -458,33 +460,259 @@ void scheduleSJF(ProcessSJF processes[], int n) {
     printf("Average Response Time   : %.2f\n", avgResp / n);
 }
 
+struct process_rr
+{
+    char Pid[10];
+    int Arrival_Time;
+    int Burst_Time;
+};
+
+struct node
+{
+    char pid[10];
+    struct node *next;
+};
+
+void enqueue_rr(struct node **front, struct node **rear, char val[10])
+{
+    struct node *temp = (struct node*)malloc(sizeof(struct node));
+    strcpy(temp->pid,val);
+    temp->next = NULL;
+
+    if(*rear == NULL){
+        *front = *rear = temp;
+    } else {
+        (*rear)->next = temp;
+        *rear = temp;
+    }
+}
+
+void dequeue_rr(struct node **front, struct node **rear)
+{
+    if(*front == NULL) return;
+
+    struct node *temp = *front;
+    *front = (*front)->next;
+
+    if(*front == NULL)
+        *rear = NULL;
+
+    free(temp);
+}
+
+bool empty_rr(struct node *front)
+{
+    return front == NULL;
+}
+
+void round_robin(int n, struct process_rr p[],
+                 struct node **front, struct node **rear,
+                 int rem_bt[], char order[][10], int time[],
+                 int *c1, int *c2)
+{
+    int quantum;
+    int current_time = 0;
+    int completed = 0;
+    bool visited[n];
+    bool first_quantum = true; 
+
+    for(int i=0;i<n;i++){
+        rem_bt[i] = p[i].Burst_Time;
+        visited[i] = false;
+    }
+
+    time[0] = 0;
+    printf("\nQuantum sizes used: ");
+
+    while(completed < n)
+    {
+        for(int i=0;i<n;i++){
+            if(p[i].Arrival_Time <= current_time && rem_bt[i] > 0 && !visited[i]){
+                enqueue_rr(front,rear,p[i].Pid);
+                visited[i] = true;
+            }
+        }
+
+        if(empty_rr(*front)){
+            current_time++;
+            continue;
+        }
+
+        if (first_quantum) {
+            quantum = 2;
+            first_quantum = false; 
+        } 
+        else {
+            double inv_sum = 0.0;
+            int cnt = 0;
+            struct node *temp = *front;
+            while(temp){
+                for(int i=0;i<n;i++){
+                    if(strcmp(p[i].Pid,temp->pid)==0){
+                        if(rem_bt[i] > 0){
+                            inv_sum += 1.0 / rem_bt[i];
+                            cnt++;
+                        }
+                        break;
+                    }
+                }
+                temp = temp->next;
+            }
+            if(cnt > 0 && inv_sum > 0)
+                quantum = (int)(cnt / inv_sum);
+            else 
+                quantum = 2; 
+
+            if(quantum < 2) quantum = 2;
+        }
+        printf("%d  ", quantum);
+
+        char cur[10];
+        strcpy(cur,(*front)->pid);
+        dequeue_rr(front,rear);
+
+        int j;
+        for(j=0;j<n;j++)
+            if(strcmp(p[j].Pid,cur)==0) break;
+
+        strcpy(order[*c1],cur);
+        (*c1)++;
+        time[*c2] = current_time;
+        (*c2)++;
+
+        if(rem_bt[j] > quantum){
+            current_time += quantum;
+            rem_bt[j] -= quantum;
+        }
+        else{
+            current_time += rem_bt[j];
+            rem_bt[j] = 0;
+            completed++;
+        }
+
+        for(int i=0;i<n;i++){
+            if(p[i].Arrival_Time <= current_time && rem_bt[i] > 0 && !visited[i]){
+                enqueue_rr(front,rear,p[i].Pid);
+                visited[i] = true;
+            }
+        }
+
+        if(rem_bt[j] > 0)
+            enqueue_rr(front,rear,p[j].Pid);
+    }
+    time[*c2] = current_time;
+    (*c2)++;
+    printf("\n");
+}
+
+void print_gantt(int c1,int c2,char order[][10],int time[])
+{
+    printf("\nRound Robin Gantt Chart:\n|");
+    for(int i=0;i<c1;i++)
+        printf(" %s |",order[i]);
+
+    printf("\n");
+    for(int i=0;i<c2;i++)
+        printf("%d  ",time[i]);
+    printf("\n");
+}
+
+void calculate_metrics(int n,struct process_rr p[],char order[][10],int time[],int c1)
+{
+    int CT[n],TAT[n],WT[n],RT[n];
+    printf("\nPID  AT  BT  CT  TAT  WT  RT\n");
+    for(int i=0;i<n;i++){
+        for(int k=c1-1;k>=0;k--){
+            if(strcmp(order[k],p[i].Pid)==0){
+                CT[i] = time[k+1];
+                TAT[i] = CT[i] - p[i].Arrival_Time;
+                WT[i] = TAT[i] - p[i].Burst_Time;
+                break;
+            }
+        }
+        for(int k=0;k<c1;k++){
+            if(strcmp(order[k],p[i].Pid)==0){
+                RT[i] = time[k] - p[i].Arrival_Time;
+                break;
+            }
+        }
+        printf("%s   %d    %d    %d    %d    %d    %d\n",
+               p[i].Pid,p[i].Arrival_Time,p[i].Burst_Time,
+               CT[i],TAT[i],WT[i],RT[i]);
+    }
+    float s1=0,s2=0,s3=0;
+    for(int i=0;i<n;i++){
+        s1+=TAT[i]; s2+=WT[i]; s3+=RT[i];
+    }
+    printf("\nAverage TAT = %.2f\n",s1/n);
+    printf("Average WT  = %.2f\n",s2/n);
+    printf("Average RT  = %.2f\n",s3/n);
+}
+
 int main() {
     FILE *fp = fopen("processes.txt", "r");
     if (!fp) { perror("File open failed"); return 1; }
+    
     int pid, at, bt;
     Queue fcfs_arrival_q;
     init_queue(&fcfs_arrival_q);
+    
     ProcessSJF sjf_procs[MAX_PROC];
     int sjf_count = 0;
-    while (fscanf(fp, "%d %d %d", &pid, &at, &bt) == 3) {
-        process *p = malloc(sizeof(process));
-        *p = (process){pid, at, bt, bt, 0.0, BASE_WEIGHT, 0, 0, READY};
-        rb_insert(&runqueue, p);
+
+    char pid_rr_temp[MAX_PROC][10];
+    int at_rr_temp[MAX_PROC];
+    int bt_rr_temp[MAX_PROC];
+    int n = 0;
+
+    while (fscanf(fp, "%d %d %d", &pid, &at, &bt) == 3 && n < MAX_PROC) {
+        process *p_node = malloc(sizeof(process));
+        *p_node = (process){pid, at, bt, bt, 0.0, BASE_WEIGHT, 0, 0, READY};
+        rb_insert(&runqueue, p_node);
         active_tasks++;
+
         ProcessIO *fp_proc = malloc(sizeof(ProcessIO));
         fp_proc->pid = pid; fp_proc->arrival_time = at; fp_proc->burst_time = bt;
         fp_proc->remaining_time = bt; fp_proc->executed_time = 0; fp_proc->start_time = -1;
         fp_proc->completion_time = 0; fp_proc->io_start = bt / 2; fp_proc->io_duration = 2;
         fp_proc->io_remaining = 0; fp_proc->in_io = 0; fp_proc->next = NULL;
         insert_by_arrival(&fcfs_arrival_q, fp_proc);
+
         initProcess(&sjf_procs[sjf_count++], pid, at, bt);
+
+        sprintf(pid_rr_temp[n], "P%d", pid);
+        at_rr_temp[n] = at;
+        bt_rr_temp[n] = bt;
+        n++;
     }
     fclose(fp);
+
+    struct process_rr p_rr[n];
+    for(int i=0; i<n; i++){
+        strcpy(p_rr[i].Pid, pid_rr_temp[i]);
+        p_rr[i].Arrival_Time = at_rr_temp[i];
+        p_rr[i].Burst_Time = bt_rr_temp[i];
+    }
+
+    struct node *front_rr=NULL, *rear_rr=NULL;
+    int rem_bt[n];
+    char order[MAX_HISTORY][10];
+    int time_arr[MAX_HISTORY];
+    int c1=0, c2=0;
+
+    printf("\n--- Starting Round Robin Scheduler ---");
+    round_robin(n, p_rr, &front_rr, &rear_rr, rem_bt, order, time_arr, &c1, &c2);
+    print_gantt(c1, c2, order, time_arr);
+    calculate_metrics(n, p_rr, order, time_arr, c1);
+
     printf("\n--- Starting FCFS Scheduler ---\n");
     fcfs_io_aware(&fcfs_arrival_q);
+
     printf("\n--- Starting CFS Scheduler ---\n");
     cfs_schedule();
+
     printf("\n--- Starting SJF Scheduler ---\n");
     scheduleSJF(sjf_procs, sjf_count);
+
     return 0;
 }
