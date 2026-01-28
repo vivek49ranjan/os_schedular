@@ -1,94 +1,100 @@
-
-# CPU Scheduling Algorithm Comparison Suite
+# CPU Scheduling Comparison Suite
 
 <p>
-  This project provides a comprehensive simulation of four major CPU scheduling algorithms. 
-  It reads process data from a local file and evaluates how each algorithm manages 
-  resources, fairness, and execution flow.
+  This project implements and compares four distinct CPU scheduling algorithms in C. 
+  By reading a single process list, the simulation provides a side-by-side 
+  performance analysis of various operating system scheduling strategies.
 </p>
 
----
+<hr>
 
-## 📋 Implemented Algorithms
+## Implemented Algorithms
 
-### 1. Round Robin (RR)
+<h3>1. Round Robin (RR)</h3>
 <p>
-  A preemptive scheduling algorithm where each process is assigned a fixed time slot 
-  in a cyclic order. It is designed to provide high interactivity.
+  A preemptive algorithm that allocates a fixed time quantum to each process. 
+  It ensures that all processes receive a share of the CPU in a circular fashion, 
+  reducing the risk of starvation.
 </p>
 
-### 2. IO-Aware FCFS
+<h3>2. IO-Aware First-Come, First-Served (FCFS)</h3>
 <p>
-  A <b>First-Come, First-Served</b> model that simulates real-world I/O blocking. 
-  When a process hits an I/O trigger, it yields the CPU and returns later, 
-  allowing other processes to utilize the idle cycles.
-</p>
-
-
-
-### 3. Completely Fair Scheduler (CFS)
-<p>
-  The modern Linux kernel scheduler. It uses a <b>Red-Black Tree</b> to track 
-  virtual runtime (<i>vruntime</i>), ensuring that the process with the 
-  least execution time is always serviced next.
+  A non-preemptive model that processes tasks in the order they arrive. This 
+  specific implementation includes IO-aware logic, simulating how a process 
+  relinquishes the CPU when performing I/O operations and re-enters the ready 
+  queue upon completion.
 </p>
 
 
 
-### 4. Shortest Job First (SJF)
+<h3>3. Completely Fair Scheduler (CFS)</h3>
 <p>
-  A policy that selects the process with the smallest burst time to execute next, 
-  aiming to minimize the average waiting time across all tasks.
+  The modern Linux kernel scheduler. It utilizes a Red-Black Tree to maintain 
+  the timeline of process execution. The scheduler always selects the task with 
+  the smallest virtual runtime (vruntime) to ensure maximum fairness.
 </p>
 
----
 
-## ⚙️ How it Works
 
+<h3>4. Shortest Job First (SJF)</h3>
 <p>
-  <b>Input Handling:</b><br>
-  The program opens <code>processes.txt</code> and parses data into three distinct 
-  formats simultaneously:
+  A policy that selects the process with the smallest burst time for the next 
+  execution cycle. This approach is mathematically optimal for minimizing 
+  average waiting time.
 </p>
 
+<hr>
+
+## Technical Flow
+
+<p>
+  <b>1. Data Parsing:</b><br>
+  The system reads <code>processes.txt</code>. For every entry, it creates:
+</p>
 <ul>
-  <li><b>Red-Black Tree nodes</b> for the CFS scheduler.</li>
-  <li><b>Linked Lists/Queues</b> for the IO-Aware FCFS.</li>
-  <li><b>Arrays/Structures</b> for SJF and Round Robin.</li>
+  <li>A Red-Black Tree node for <b>CFS</b>.</li>
+  <li>A queue-based <code>ProcessIO</code> structure for <b>FCFS</b>.</li>
+  <li>An array-based structure for <b>SJF</b> and <b>RR</b>.</li>
 </ul>
 
 <p>
-  <b>Metrics Calculation:</b><br>
-  After each execution, the simulation calculates the following for every PID:
+  <b>2. Execution:</b><br>
+  The <code>main</code> function triggers each scheduler sequentially. Each 
+  algorithm maintains its own internal state, allowing for a fair comparison of 
+  the same input data across different logic models.
 </p>
 
+<p>
+  <b>3. Metrics Output:</b><br>
+  Every scheduler outputs a Gantt chart and a statistics table including:
+</p>
 <pre>
-Turnaround Time (TAT) = Completion Time - Arrival Time
-Waiting Time (WT)     = Turnaround Time - Burst Time
-Response Time (RT)    = First Start Time - Arrival Time
+  Turnaround Time (TAT) = Completion Time - Arrival Time
+  Waiting Time (WT)     = Turnaround Time - Burst Time
+  Response Time (RT)    = First Execution Time - Arrival Time
 </pre>
 
----
+<hr>
 
-## 🚀 Usage Instructions
+## How to Run
 
 <p>
-  1. Create a file named <code>processes.txt</code> in the following format:<br>
-  &nbsp;&nbsp;&nbsp;<code>[PID] [Arrival_Time] [Burst_Time]</code>
+  1. Prepare a <code>processes.txt</code> file in the root directory:<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;Format: <code>[PID] [Arrival_Time] [Burst_Time]</code>
 </p>
 
 <p>
-  2. Compile the suite:<br>
-  &nbsp;&nbsp;&nbsp;<code>gcc -o scheduler_sim main.c</code>
+  2. Compile the source code:<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;<code>gcc -o scheduler_sim main.c</code>
 </p>
 
 <p>
-  3. Run the simulation:<br>
-  &nbsp;&nbsp;&nbsp;<code>./scheduler_sim</code>
+  3. Run the executable:<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;<code>./scheduler_sim</code>
 </p>
 
----
+<hr>
 
 <p align="center">
-  <i>Developed to demonstrate the trade-offs between scheduling fairness and throughput.</i>
+  <i>Simulation designed for educational analysis of Operating System scheduling behaviors.</i>
 </p>
