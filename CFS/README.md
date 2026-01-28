@@ -1,1 +1,65 @@
-Completely Fair Scheduler (CFS) ImplementationThis repository contains a C implementation of the Completely Fair Scheduler (CFS), the default process scheduler used in the Linux kernel. The simulation models how the kernel balances CPU time among processes using a weighted fair-queuing approach.Core ConceptsVirtual Runtime ($vruntime$)CFS tracks the "virtual" time a process has spent on the CPU. The scheduler always selects the process with the smallest $vruntime$ to execute next.High Priority: $vruntime$ increases slowly, granting more CPU time.Low Priority: $vruntime$ increases quickly, leading to less CPU time.Red-Black Tree Data StructureTo manage processes efficiently, CFS uses a Red-Black Tree. This self-balancing binary search tree allows for $O(\log N)$ insertions and $O(1)$ retrieval of the process with the minimum $vruntime$.Technical DetailsScheduling LogicSelection: rb_extract_min picks the process with the lowest $vruntime$.Calculation: calc_slice determines the time quantum based on the process weight and total active tasks.Update: After execution, update_vruntime increments the process's timeline.Rebalancing: If the process is not finished, rb_insert places it back into the tree. The tree maintains balance through left_rotate and right_rotate operations.FormulasTime Slice: $Time\ Slice = \frac{Period \times Weight}{Total\ Weight}$vruntime Update: $\Delta vruntime = \Delta Actual\ Time \times \frac{Base\ Weight}{Process\ Weight}$Simulation OutputThe program provides detailed execution feedback:Gantt Chart: A visual timeline of process execution slices.Process Metrics: A table calculating Turnaround Time (TAT), Waiting Time (WT), and Response Time (RT).Averages: Summary statistics to evaluate the efficiency and fairness of the scheduling period.
+# Completely Fair Scheduler (CFS) Simulation
+
+This project is a C implementation of the Completely Fair Scheduler (CFS), the default process scheduler used in the Linux kernel. It utilizes a Red-Black Tree to manage tasks and ensure a fair distribution of CPU time.
+
+---
+
+## Technical Overview
+
+The CFS algorithm does not use traditional time slices. Instead, it assigns a proportion of the CPU based on the weight of each task. It maintains balance by tracking the **virtual runtime** ($vruntime$) of each process.
+
+### Key Components
+
+* **vruntime**: A measure of the CPU time a task has received. The scheduler always chooses the task with the smallest $vruntime$.
+* **Red-Black Tree**: A self-balancing binary search tree used to store active tasks. This ensures $O(\log N)$ time complexity for insertions and deletions.
+* **Weight-based Allocation**: Tasks are assigned weights based on their priority. Higher weights result in $vruntime$ increasing more slowly.
+
+
+
+---
+
+## Core Formulas
+
+The scheduler uses the following mathematical logic to determine execution:
+
+1.  **Time Slice Calculation**:
+    $$\text{slice} = \frac{\text{SCHED\_PERIOD} \times \text{weight}}{\text{Total active weight}}$$
+
+2.  **Virtual Runtime Update**:
+    $$\Delta vruntime = \text{actual\_time} \times \frac{\text{BASE\_WEIGHT}}{\text{process\_weight}}$$
+
+---
+
+## Logic Flow
+
+1.  **Extraction**: The process with the minimum $vruntime$ is extracted from the Red-Black Tree.
+2.  **Execution**: The process runs for its calculated time slice.
+3.  **Update**: The $vruntime$ is updated based on the actual duration it ran.
+4.  **Re-insertion**: If the process has remaining burst time, it is re-inserted into the tree. The tree rebalances itself via rotations.
+
+
+
+---
+
+## Execution Results
+
+Upon completion, the simulation provides:
+
+### 1. Gantt Chart
+A visual representation of how processes occupied the CPU over time.
+
+### 2. Performance Metrics
+A detailed table containing:
+* **TAT (Turnaround Time)**: Completion Time - Arrival Time
+* **WT (Waiting Time)**: Turnaround Time - Burst Time
+* **RT (Response Time)**: First Start Time - Arrival Time
+
+---
+
+## Compilation and Usage
+
+Compile the source code using `gcc`:
+
+```bash
+gcc cfs_scheduler.c -o cfs_sim
+./cfs_sim
