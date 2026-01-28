@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 /* ================= PROCESS CONTROL BLOCK ================= */
-typedef struct process {
+typedef struct ProcessIO Process {
     int pid;
     int arrival_time;
     int burst_time;
@@ -83,23 +83,16 @@ void insert_by_arrival(Queue *arrival_q, Process *p) {
 /* =================FCFS I/O-AWARE STREAMING SCHEDULER=====================================*/
 void fcfs_io_aware(Queue *arrival_q) {
 
-    static int time = 0;          /* persistent clock */
-    static int header_printed = 0;
+    int time = 0;
+    Queue ready_q, io_q;
+    Process *current = NULL;
 
-    static Queue ready_q, io_q;
-    static Process *current = NULL;
+    init_queue(&ready_q);
+    init_queue(&io_q);
 
-    static int initialized = 0;
-    if (!initialized) {
-        init_queue(&ready_q);
-        init_queue(&io_q);
-        initialized = 1;
     }
 
-    if (!header_printed) {
-        printf("\nGANTT CHART:\n");
-        header_printed = 1;
-    }
+    printf("\nGANTT CHART:\n");
 
     /* ---- Admit arrivals ---- */
     while (!is_empty(arrival_q) &&
@@ -151,7 +144,7 @@ void fcfs_io_aware(Queue *arrival_q) {
 
         /* I/O block */
         if (current->executed_time == current->io_start &&
-            current->remaining_time > 0) {
+            current->remaining_time > 0 && current->io_duration>0) {
 
             current->in_io = 1;
             current->io_remaining = current->io_duration;
@@ -182,4 +175,5 @@ void fcfs_io_aware(Queue *arrival_q) {
 
     time++;
 }
+
 
