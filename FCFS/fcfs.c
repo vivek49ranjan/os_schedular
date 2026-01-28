@@ -13,7 +13,7 @@ typedef struct ProcessIO Process {
     int start_time;
     int completion_time;
 
-    /* I/O (heuristic) */
+    /* I/O */
     int io_start;
     int io_duration;
     int io_remaining;
@@ -175,5 +175,6 @@ void fcfs_io_aware(Queue *arrival_q) {
 
     time++;
 }
+
 
 
