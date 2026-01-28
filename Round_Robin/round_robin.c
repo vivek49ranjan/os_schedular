@@ -35,7 +35,9 @@ void enqueue_rr(struct node_rr **front, struct node_rr **rear, char val[10])
 
 void dequeue_rr(struct node_rr **front, struct node_rr **rear)
 {
-    if(*front == NULL) return;
+    if(*front == NULL){ 
+        return;
+    }
 
     struct node_rr *temp = *front;
     *front = (*front)->next;
@@ -119,18 +121,18 @@ void round_robin(int n, struct process_rr p[],
         }
         printf("%d  ", quantum);
 
-        char cur[10];
-        strcpy(cur,(*front)->pid);
+        char current_pid[10];
+        strcpy(current_pid,(*front)->pid);
         dequeue_rr(front,rear);
 
         int j;
         for(j=0;j<n;j++){
-            if(strcmp(p[j].Pid,cur)==0){
+            if(strcmp(p[j].Pid,current_pid)==0){
                 break;
             }
         }
 
-        strcpy(order[*c1],cur);
+        strcpy(order[*c1],current_pid);
         (*c1)++;
         time[*c2] = current_time;
         (*c2)++;
