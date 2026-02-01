@@ -1,4 +1,3 @@
-
 #define AGING_FACTOR 1
 
 typedef struct {
@@ -84,6 +83,9 @@ void scheduleSJF(ProcessSJF processes[], int n) {
                 time++;
                 continue;
             }
+            for (int i = 0; i < rq.size; i++)
+                rq.data[i].age++;
+
             ProcessSJF current = popSJF(&rq);
             current.start = time;
             time += current.burst;
@@ -91,7 +93,9 @@ void scheduleSJF(ProcessSJF processes[], int n) {
             current.turnaround = current.completion - current.arrival;
             current.waiting = current.turnaround - current.burst;
             printf("%3d | %2d | %2d | %2d | %2d | %3d | %3d\n",
-                   current.pid, current.arrival, current.burst, current.start, current.completion, current.turnaround, current.waiting);
+                   current.pid, current.arrival, current.burst,
+                   current.start, current.completion,
+                   current.turnaround, current.waiting);
             done++;
         }
     }
