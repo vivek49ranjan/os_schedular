@@ -12,7 +12,7 @@
 The objective of this project is to understand the working of the
 <strong>Shortest Job First (SJF)</strong> CPU scheduling algorithm in a
 <strong>multi-core environment</strong> and analyze its behavior using
-standard scheduling metrics.
+standard scheduling metrics and Gantt chart visualization.
 </p>
 
 <h3>Description</h3>
@@ -26,6 +26,8 @@ Shortest Job First policy.
 An <strong>aging mechanism</strong> is implemented to dynamically increase
 the priority of processes waiting in the ready queue, thereby reducing
 the possibility of starvation.
+The scheduler also records execution history to generate
+<strong>per-core Gantt charts</strong>.
 </p>
 
 <h3>Key Features</h3>
@@ -37,6 +39,7 @@ the possibility of starvation.
     <li>Aging support to prevent starvation</li>
     <li>CPU idle time handling</li>
     <li>Per-core scheduling metrics output</li>
+    <li>Per-core Gantt chart visualization</li>
 </ul>
 
 <h3>Scheduling Behavior</h3>
@@ -50,10 +53,20 @@ the possibility of starvation.
     <li>The CPU core remains <strong>IDLE</strong> if no process is ready</li>
 </ul>
 
+<h3>Gantt Chart Representation</h3>
+<p>
+The scheduler maintains execution history for each CPU core and displays
+a <strong>per-core Gantt chart</strong> showing the order and duration of
+process execution.
+This visualization helps in understanding scheduling decisions and CPU
+utilization across multiple cores.
+</p>
+
 <h3>Data Structures Used</h3>
 <ul>
     <li>Process Control Block (PCB) implemented using <code>struct</code></li>
     <li>Separate ready queue per core implemented as a <strong>min-heap</strong></li>
+    <li>Gantt chart entries stored using structured execution records</li>
 </ul>
 
 <h3>Metrics Calculation</h3>
@@ -67,7 +80,7 @@ the possibility of starvation.
     <li>Initialize processes in the <code>ProcessSJF</code> array</li>
     <li>Ensure <code>NUM_CORES</code> is defined</li>
     <li>Call <code>scheduleSJF(processes, n)</code></li>
-    <li>Observe per-core scheduling results printed on the terminal</li>
+    <li>Observe per-core scheduling results and Gantt charts printed on the terminal</li>
 </ol>
 
 <h3>Notes</h3>
@@ -76,15 +89,17 @@ Aging is applied by incrementing the age of all processes waiting in the
 ready queue before each scheduling decision.
 This ensures that long-waiting processes gradually gain higher priority
 and starvation is reduced.
+Since the scheduler is non-preemptive, aging influences job selection
+only before execution begins.
 </p>
 
 <h3>Conclusion</h3>
 <p>
 This project provides a clear and practical implementation of
 non-preemptive Shortest Job First scheduling in a multi-core system.
-With aging support and per-core scheduling metrics, it serves as an
-effective learning tool for operating system concepts, laboratory
-experiments, and interview preparation.
+With aging support, per-core scheduling metrics, and Gantt chart
+visualization, it serves as an effective learning tool for operating
+system concepts, laboratory experiments, and interview preparation.
 </p>
 
 </body>
