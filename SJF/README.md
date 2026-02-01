@@ -23,8 +23,9 @@ Each core schedules its assigned processes independently using the
 Shortest Job First policy.
 </p>
 <p>
-An <strong>aging-based priority calculation</strong> is included in the
-scheduler logic to conceptually reduce starvation of longer processes.
+An <strong>aging mechanism</strong> is implemented to dynamically increase
+the priority of processes waiting in the ready queue, thereby reducing
+the possibility of starvation.
 </p>
 
 <h3>Key Features</h3>
@@ -33,6 +34,7 @@ scheduler logic to conceptually reduce starvation of longer processes.
     <li>Multi-core CPU scheduling simulation</li>
     <li>Static process-to-core assignment using process ID</li>
     <li>Heap-based ready queue for efficient job selection</li>
+    <li>Aging support to prevent starvation</li>
     <li>CPU idle time handling</li>
     <li>Per-core scheduling metrics output</li>
 </ul>
@@ -42,7 +44,8 @@ scheduler logic to conceptually reduce starvation of longer processes.
     <li>Each CPU core maintains its own ready queue</li>
     <li>Processes are assigned to cores based on <code>PID % NUM_CORES</code></li>
     <li>Processes enter the ready queue when their arrival time is reached</li>
-    <li>The shortest job is selected from the ready queue</li>
+    <li>Waiting processes gradually increase their priority through aging</li>
+    <li>The shortest effective job is selected from the ready queue</li>
     <li>Once a process starts execution, it runs until completion</li>
     <li>The CPU core remains <strong>IDLE</strong> if no process is ready</li>
 </ul>
@@ -69,18 +72,19 @@ scheduler logic to conceptually reduce starvation of longer processes.
 
 <h3>Notes</h3>
 <p>
-Although an aging factor is included in the priority calculation,
-aging is not dynamically increased during execution in this implementation.
-The primary focus is on demonstrating multi-core SJF scheduling behavior.
+Aging is applied by incrementing the age of all processes waiting in the
+ready queue before each scheduling decision.
+This ensures that long-waiting processes gradually gain higher priority
+and starvation is reduced.
 </p>
 
 <h3>Conclusion</h3>
 <p>
 This project provides a clear and practical implementation of
 non-preemptive Shortest Job First scheduling in a multi-core system.
-It helps in understanding how scheduling decisions differ across CPU cores
-and serves as a useful learning tool for operating system concepts and
-academic assignments.
+With aging support and per-core scheduling metrics, it serves as an
+effective learning tool for operating system concepts, laboratory
+experiments, and interview preparation.
 </p>
 
 </body>
