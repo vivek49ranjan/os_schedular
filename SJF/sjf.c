@@ -1,221 +1,98 @@
-#include <stdio.h>
-#include <stdlib.h>
 
-#define MAX_PROC 100
 #define AGING_FACTOR 1
 
-typedef struct
-{
+typedef struct {
     int pid;
     int arrival;
     int burst;
     int start;
     int completion;
+    int age;
     int waiting;
     int turnaround;
-    int response;
-    int age;
-} Process;
+} ProcessSJF;
 
-typedef struct
-{
-    Process data[MAX_PROC];
+typedef struct {
+    ProcessSJF data[MAX_PROC];
     int size;
-} ReadyQueue;
+} ReadyQueueSJF;
 
-typedef struct
-{
-    int pid;
-    int start;
-    int end;
-} Gantt;
-
-void initProcess(Process *p, int id, int at, int bt)
-{
-    p->pid = id;
-    p->arrival = at;
-    p->burst = bt;
-    p->start = -1;
-    p->completion = 0;
-    p->waiting = 0;
-    p->turnaround = 0;
-    p->response = 0;
-    p->age = 0;
+int hasHigherPriority(ProcessSJF a, ProcessSJF b) {
+    int effA = a.burst - a.age * AGING_FACTOR;
+    int effB = b.burst - b.age * AGING_FACTOR;
+    if (effA != effB) return effA < effB;
+    return a.arrival < b.arrival;
 }
 
-int sortByArrival(const void *a, const void *b)
-{
-    Process *p1 = (Process *)a;
-    Process *p2 = (Process *)b;
-
-    if (p1->arrival != p2->arrival)
-        return p1->arrival - p2->arrival;
-
-    return p1->pid - p2->pid;
-}
-
-int hasHigherPriority(Process a, Process b)
-{
-    int effectiveA = a.burst - a.age * AGING_FACTOR;
-    int effectiveB = b.burst - b.age * AGING_FACTOR;
-
-    if (effectiveA != effectiveB)
-        return effectiveA < effectiveB;
-
-    if (a.arrival != b.arrival)
-        return a.arrival < b.arrival;
-
-    return a.pid < b.pid;
-}
-
-void swap(Process *a, Process *b)
-{
-    Process temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-void heapifyUp(ReadyQueue *rq, int index)
-{
-    while (index > 0)
-    {
-        int parent = (index - 1) / 2;
-
-        if (hasHigherPriority(rq->data[index], rq->data[parent]))
-        {
-            swap(&rq->data[index], &rq->data[parent]);
-            index = parent;
-        }
-        else
-            break;
-    }
-}
-
-void heapifyDown(ReadyQueue *rq, int index)
-{
-    while (1)
-    {
-        int best = index;
-        int left = 2 * index + 1;
-        int right = 2 * index + 2;
-
-        if (left < rq->size && hasHigherPriority(rq->data[left], rq->data[best]))
-            best = left;
-
-        if (right < rq->size && hasHigherPriority(rq->data[right], rq->data[best]))
-            best = right;
-
-        if (best != index)
-        {
-            swap(&rq->data[index], &rq->data[best]);
-            index = best;
-        }
-        else
-            break;
-    }
-}
-
-void pushProcess(ReadyQueue *rq, Process p)
-{
+void pushSJF(ReadyQueueSJF *rq, ProcessSJF p) {
     rq->data[rq->size] = p;
-    heapifyUp(rq, rq->size);
-    rq->size++;
+    int i = rq->size++;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (hasHigherPriority(rq->data[i], rq->data[parent])) {
+            ProcessSJF tmp = rq->data[i];
+            rq->data[i] = rq->data[parent];
+            rq->data[parent] = tmp;
+            i = parent;
+        } else break;
+    }
 }
 
-Process popProcess(ReadyQueue *rq)
-{
-    Process top = rq->data[0];
-    rq->data[0] = rq->data[rq->size - 1];
-    rq->size--;
-    heapifyDown(rq, 0);
+ProcessSJF popSJF(ReadyQueueSJF *rq) {
+    ProcessSJF top = rq->data[0];
+    rq->data[0] = rq->data[--rq->size];
+    int i = 0;
+    while (1) {
+        int best = i;
+        int left = 2 * i + 1;
+        int right = 2 * i + 2;
+        if (left < rq->size && hasHigherPriority(rq->data[left], rq->data[best])) best = left;
+        if (right < rq->size && hasHigherPriority(rq->data[right], rq->data[best])) best = right;
+        if (best != i) {
+            ProcessSJF tmp = rq->data[i];
+            rq->data[i] = rq->data[best];
+            rq->data[best] = tmp;
+            i = best;
+        } else break;
+    }
     return top;
 }
 
-void increaseAge(ReadyQueue *rq)
-{
-    for (int i = 0; i < rq->size; i++)
-        rq->data[i].age++;
-}
+void scheduleSJF(ProcessSJF processes[], int n) {
+    for (int core = 0; core < NUM_CORES; core++) {
+        ReadyQueueSJF rq;
+        rq.size = 0;
+        int time = 0;
+        int done = 0;
+        int core_total = 0;
+        ProcessSJF core_finished[MAX_PROC];
+        int core_f_count = 0;
 
-void printGantt(Gantt chart[], int count)
-{
-    printf("\nGantt Chart\n ");
+        for (int i = 0; i < n; i++)
+            if (processes[i].pid % NUM_CORES == core) core_total++;
+        if (core_total == 0) continue;
 
-    for (int i = 0; i < count; i++)
-        printf("-------");
-
-    printf("\n|");
-
-    for (int i = 0; i < count; i++)
-    {
-        if (chart[i].pid == -1)
-            printf(" IDLE |");
-        else
-            printf("  P%d  |", chart[i].pid);
-    }
-
-    printf("\n ");
-
-    for (int i = 0; i < count; i++)
-        printf("-------");
-
-    printf("\n%d", chart[0].start);
-
-    for (int i = 0; i < count; i++)
-        printf("%7d", chart[i].end);
-
-    printf("\n\n");
-}
-
-void scheduleSJF(Process processes[], int n)
-{
-    qsort(processes, n, sizeof(Process), sortByArrival);
-
-    ReadyQueue rq;
-    rq.size = 0;
-
-    Gantt chart[MAX_PROC * 2];
-    int chartSize = 0;
-
-    int time = 0, index = 0, done = 0;
-    float avgWait = 0, avgTurn = 0, avgResp = 0;
-
-    while (done < n)
-    {
-        while (index < n && processes[index].arrival <= time)
-            pushProcess(&rq, processes[index++]);
-
-        if (rq.size == 0)
-        {
-            int nextTime = processes[index].arrival;
-            chart[chartSize++] = (Gantt){-1, time, nextTime};
-            time = nextTime;
-            continue;
+        printf("\n--- SJF CORE %d METRICS ---\nPID | AT | BT | ST | CT | TAT | WT\n", core);
+        while (done < core_total) {
+            for (int i = 0; i < n; i++) {
+                if (processes[i].pid % NUM_CORES == core && processes[i].arrival <= time && processes[i].start == -1) {
+                    processes[i].start = -2;
+                    pushSJF(&rq, processes[i]);
+                }
+            }
+            if (rq.size == 0) {
+                time++;
+                continue;
+            }
+            ProcessSJF current = popSJF(&rq);
+            current.start = time;
+            time += current.burst;
+            current.completion = time;
+            current.turnaround = current.completion - current.arrival;
+            current.waiting = current.turnaround - current.burst;
+            printf("%3d | %2d | %2d | %2d | %2d | %3d | %3d\n",
+                   current.pid, current.arrival, current.burst, current.start, current.completion, current.turnaround, current.waiting);
+            done++;
         }
-
-        increaseAge(&rq);
-        Process current = popProcess(&rq);
-
-        current.start = time;
-        current.response = time - current.arrival;
-        current.waiting = current.response;
-
-        chart[chartSize++] = (Gantt){current.pid, time, time + current.burst};
-
-        time += current.burst;
-        current.completion = time;
-        current.turnaround = current.completion - current.arrival;
-
-        avgWait += current.waiting;
-        avgTurn += current.turnaround;
-        avgResp += current.response;
-
-        done++;
     }
-
-    printGantt(chart, chartSize);
-
-    printf("Average Waiting Time    : %.2f\n", avgWait / n);
-    printf("Average Turnaround Time : %.2f\n", avgTurn / n);
-    printf("Average Response Time   : %.2f\n", avgResp / n);
 }
