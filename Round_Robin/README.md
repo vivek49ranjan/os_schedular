@@ -1,25 +1,26 @@
 # Dynamic Quantum Round Robin Scheduling Algorithm
 
-## Overview
-This project implements an enhanced Round Robin (RR) CPU Scheduling algorithm in C, where the time quantum is dynamically calculated based on the harmonic mean of the remaining burst times of processes currently present in the ready queue.
+Overview
 
-The approach improves CPU utilization and reduces average waiting time, turnaround time, and response time compared to the traditional fixed-time-quantum Round Robin algorithm.
+This project implements an Adaptive Round Robin CPU Scheduling Algorithm for a multicore system, where the time quantum is dynamically calculated using the harmonic mean of the remaining burst times of processes currently present in the ready queue.
 
----
+Unlike traditional Round Robin scheduling with a fixed time quantum, this approach adapts to workload conditions, improving fairness and reducing waiting and turnaround times.
 
-## Features
-- Dynamic time quantum selection
-- Linked-list based ready queue
-- Supports process arrival times
-- Generates Gantt Chart
-- Calculates:
-  - Completion Time (CT)
-  - Turnaround Time (TAT)
-  - Waiting Time (WT)
-  - Response Time (RT)
-- Computes average scheduling metrics
+Key Features
 
----
+Multicore Round Robin scheduling
+
+Dynamic time quantum using harmonic mean
+
+Linked-list based ready queue
+
+Gantt chart generation for each core
+
+Calculation of CT, TAT, WT, and RT
+
+Prevention of starvation
+
+Efficient handling of short and long processes
 
 ## Tech Stack
 - Language: C  
@@ -28,14 +29,7 @@ The approach improves CPU utilization and reduces average waiting time, turnarou
   - CPU Scheduling
   - Round Robin Algorithm
   - Linked Lists
+  - Harmonic Mean
+  - Structures and Arrays
 
 ---
-
-## Data Structures
-### Process Structure
-```c
-struct process_rr {
-    char Pid[10];
-    int Arrival_Time;
-    int Burst_Time;
-};
